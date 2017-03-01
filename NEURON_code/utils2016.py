@@ -629,4 +629,3 @@ class simple_cell():
 
         return t, v_soma, syn_i
 
-        

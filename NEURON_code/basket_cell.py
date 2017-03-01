@@ -2,10 +2,6 @@ from .neuron_model import NeuronModel
 
 class BasketCell(NeuronModel):
 
-    '''
-    Smaller, changed verison of Basket cell class made in Franfurt.
-    '''
-
     def __init__(self,morphology_file = 'jc_tree2.hoc'):
         self.verbose = False
         assert os.path.exists(morphology_file)
