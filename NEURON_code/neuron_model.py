@@ -1,3 +1,10 @@
+import numpy as np
+import os
+import matplotlib.pyplot as plt
+from neuron import h
+
+from PIL import Image, ImageDraw
+
 class NeuronModel():
     
     def get_2d_position(self, sec, loc, xoffset = 50):

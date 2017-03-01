@@ -1,3 +1,8 @@
+import os
+import numpy as np
+import matplotlib.pyplot as plt
+from neuron import h
+
 from .basket_cell import BasketCell
 
 class BasketCellIV(BasketCell):
@@ -57,7 +62,7 @@ class BasketCellIV(BasketCell):
         pre.del_rel = t_rel
 
         if synpase_type.lower() == 'ampa':
-            print 'running simulation of AMPAR IV with',p_conc,'µM polyamines'
+            print ( 'running simulation of AMPAR IV with',p_conc,'µM polyamines')
 
             cpampa = h.cpampa12st(0.5,sec=self.root)
             cpampa.pconc = p_conc
@@ -66,7 +71,7 @@ class BasketCellIV(BasketCell):
             h.setpointer(pre(0.5).rel._ref_T,'C',cpampa)
 
         if synpase_type.lower() == 'nmda':
-            print 'running simulation of NMDA IV'
+            print ('running simulation of NMDA IV')
 
             nmda = h.NMDA_Mg_T(0.5,sec=self.root)
             nmda.gmax =  nmda_gmax

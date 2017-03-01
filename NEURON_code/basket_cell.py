@@ -1,3 +1,9 @@
+import os
+
+import numpy as np
+import matplotlib.pyplot as plt
+from neuron import h
+
 from .neuron_model import NeuronModel
 
 class BasketCell(NeuronModel):
@@ -104,11 +110,11 @@ class BasketCell(NeuronModel):
 
         border_threshold = np.max(distances_from_root)
         if self.verbose:
-            print 'Biophysics method reporting in: '
-            print 'Max dendrite distance from soma = ',np.max(distances_from_root)
-            print 'Border threshold (1/3 max), set at: ', border_threshold/3
+            print ('Biophysics method reporting in: ')
+            print ('Max dendrite distance from soma = ',np.max(distances_from_root))
+            print ('Border threshold (1/3 max), set at: ', border_threshold/3)
             for section in self.sec_list:
-                print section.nseg, 'segments in ',section.name()
+                print (section.nseg, 'segments in ',section.name())
 
         # having calculated distances, insert conductances.
         for sec in self.dendrites:
@@ -205,7 +211,7 @@ class BasketCell(NeuronModel):
         release_times = np.array([rel_time + delay*i for i in range(n_synapses)])
 
         if spots == 'all':
-            print 'uncaging on all spots:'
+            print ('uncaging on all spots:')
             uncaging_spots = possible_locs
         else:
             uncaging_spots = possible_locs[spots]
@@ -240,16 +246,16 @@ class BasketCell(NeuronModel):
         for syn in self.cpampa_list:
             distance = h.distance(syn.get_segment().x, sec = self.u_dend)
             distances.append(distance)
-        print min(distances),'to', max(distances), 'from soma'
-        print 'Middle is', min(distances) + (max(distances) - min(distances))/2.0
-        print 'inter spot distances are', np.diff(sorted(np.unique(distances)))
-        print len(np.unique(distances)), 'unique spots for', len(self.cpampa_list), 'synapses'
+        print (min(distances),'to', max(distances), 'from soma')
+        print ('Middle is', min(distances) + (max(distances) - min(distances))/2.0)
+        print ('inter spot distances are', np.diff(sorted(np.unique(distances))))
+        print (len(np.unique(distances)), 'unique spots for', len(self.cpampa_list), 'synapses')
 
         if dendrite:
-            print 'Dendrite has', self.u_dend.nseg, 'segments:'
+            print ('Dendrite has', self.u_dend.nseg, 'segments:')
             for i, segment in enumerate(self.u_dend):
                 distance = h.distance(segment.x, sec = self.u_dend)
-                print 'Seg', i, 'is', distance, 'microns from soma'
+                print ('Seg', i, 'is', distance, 'microns from soma')
 
     def stim_electrodes(self):
-        print 'not implemented - maybe second model'
+        print ('not implemented - maybe second model')
