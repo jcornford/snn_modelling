@@ -89,7 +89,7 @@ class NeuronModel():
                 fill_color = (0,0,0)
             x,y,z,d = self.get_coordinates(sec)
             x +=50
-            xy = zip(x,y)
+            xy = list(zip(x,y))
             for i in range(len(x)-1):
                 draw.line((xy[i], xy[i+1]), fill = fill_color, width = int(d[i]))
 

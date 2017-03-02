@@ -64,13 +64,26 @@ class BasketCell(NeuronModel):
             if sec.name().find('axon') >=0:
                 self.dendrites.append(sec=sec)
 
-    def set_nsegs(self,frequency = 1000, d_lambda = 0.1):
+    def increase_nseg_by_factor(self, multiplication_factor = 3):
+        # Starting in version 3.2, a change to nseg re-uses information contained in the old segments.
+        self.total_nseg = 0
+        for sec in self.sec_list:
+            sec.nseg *=multiplication_factor
+            self.total_nseg += sec.nseg
+
+    def set_nsegs(self, frequency = 1000, d_lambda = 0.1):
 
         ''' Set the number of segments for section according to the
-        d_lambda rule for a given input frequency'''
+        d_lambda rule for a given input frequency
 
+        Inputs:
+        frequency: [1000]: AC frequency for method 'lambda_f'
+        d_lambda: [0.1]: parameter for d_lambda rule
+        '''
+        self.total_nseg = 0
         for sec in self.sec_list:
-            sec.nseg = int((sec.L / (d_lambda*h.lambda_f(frequency,sec=sec)) + .9)/ 2 )*2 + 1
+            sec.nseg = int((sec.L / (d_lambda*h.lambda_f(frequency,sec=sec)) + .999)/ 2 )*2 + 1
+            self.total_nseg += sec.nseg
 
     def biophysics(self,
                    Ra       =190,
