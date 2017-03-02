@@ -64,6 +64,44 @@ class BasketCell(NeuronModel):
             if sec.name().find('axon') >=0:
                 self.dendrites.append(sec=sec)
 
+    def get_section_diameters(self):
+
+        diameter_dict = {}
+        for sec in self.sec_list:
+            sec_diameters = []
+            for seg in sec:
+                sec_diameters.append(sec.diam)
+            diameter_dict[sec.name()] = sec_diameters
+
+        return diameter_dict
+
+    def increase_dendrite_diameter(self, factor, reset_dlamda = True):
+        '''
+        diameter will effect the length constant, so you should redo the calculations for number of segments
+        after playing with the diameter
+
+        happily changing segment numbers inherits the parameters! Though you should double check this to be sure.
+        '''
+        for sec in self.dendrites:
+            for seg in sec:
+                seg.diam *= factor
+        if reset_dlamda:
+            self.set_nsegs()
+
+
+    def calculate_segment_lengths(self):
+        """
+        Calculates the lengths of all the segments using the segments area and diameter
+        self.segment_lengths
+        """
+        self.segment_lengths = []
+        for sec in self.sec_list:
+            for seg in sec:
+                area = seg.area()
+                r = seg.diam/2
+                l = (area - 2 *np.pi * (r**2))/(2*np.pi*r)
+                self.segment_lengths.append(l)
+
     def increase_nseg_by_factor(self, multiplication_factor = 3):
         # Starting in version 3.2, a change to nseg re-uses information contained in the old segments.
         self.total_nseg = 0
@@ -107,12 +145,11 @@ class BasketCell(NeuronModel):
             sec.cm = 0.9
 
         # run the lamda rule having set Ra and cm
-        frequency = 1000
-        d_lambda = 0.1
-        for sec in self.sec_list:
-            sec.nseg = int((sec.L / (d_lambda*h.lambda_f(frequency,sec=sec)) + .9)/ 2 )*2 + 1
+        # todo this should be after you have set membrane resistance (though you call a second time anyway)
+        self.set_nsegs(frequency=1000, d_lambda=0.1)
 
         # set origin for distance measurement
+        # todo this works even though my reading of the docs would require root to be passed?
         origin = h.distance(0,0.0,sec=self.root)
         segment_count = 1
         distances_from_root = []
@@ -162,6 +199,8 @@ class BasketCell(NeuronModel):
                 seg.hh_wbm.el     = el
                 seg.hh_wbm.egk     = egk
                 seg.hh_wbm.vshift = vshift
+
+        self.set_nsegs(frequency=1000, d_lambda=0.1)
 
     def select_recording_dendrite(self, dend_string):
         for section in self.sec_list:
