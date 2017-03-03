@@ -39,12 +39,12 @@ class NeuronModel():
         return (np.array(x),np.array(y),np.array(z),np.array(d))            
     
     @staticmethod
-    def plot_electrode(x,y,color = 'k', dpatch_left = False, dx=125,
-                       dy = 12, lw = 1.5, gap = 1, linestyle = '-'):
+    def plot_electrode(x,y,lcolor = 'k', dpatch_left = False, dx=125,
+                       dy = 12, lw = 1, gap = 1, linestyle = '-'):
         if dpatch_left:
             dx = -dx
-        plt.plot((x, x+dx),(y+gap, y+dy), color = 'k', linewidth = 1.5, linestyle = linestyle)
-        plt.plot((x, x+dx),(y-gap, y-dy), color = 'k', linewidth = 1.5, linestyle = linestyle)
+        plt.plot((x, x+dx),(y+gap, y+dy), color = lcolor, linewidth = lw, linestyle = linestyle)
+        plt.plot((x, x+dx),(y-gap, y-dy), color = lcolor, linewidth = lw, linestyle = linestyle)
                 
         
     def plot_morphology(self,
@@ -56,7 +56,9 @@ class NeuronModel():
                             plot_electrodes = False,
                             xy = (512,512),
                             dpatch_left = False, 
-                            selection_string = 'cpampa_list'):
+                            selection_string = 'cpampa_list',
+                            e_color = 'k',
+                            elw     = 1):
         
         '''
         This needs to be cleaned up a little.
@@ -113,23 +115,22 @@ class NeuronModel():
 
             elif selection_string == 'cpampa_list':
                 syn_color = mc_f['r']
-                for key in self.cpampa_list:
-                    cpampa_list = self.cpampa_list
-                    for syn in cpampa_list:
-                        syn_loc = syn.get_segment().x 
-                        sec = syn.get_segment().sec
-                        x,y = self.get_2d_position(sec, syn_loc)
-                        plt.plot(x, y,'o',
-                                 alpha = synapse_marker_alpha,
-                                 color = syn_color,
-                                 markersize = synapse_marker_r)
+
+                for syn in self.cpampa_list:
+                    syn_loc = syn.get_segment().x
+                    sec = syn.get_segment().sec
+                    x,y = self.get_2d_position(sec, syn_loc)
+                    plt.plot(x, y,'o',
+                             alpha = synapse_marker_alpha,
+                             color = syn_color,
+                             markersize = synapse_marker_r)
 
         if plot_electrodes:
             xs,ys = self.get_2d_position(self.root, 0.5)
-            self.plot_electrode(xs,ys,'k')
+            self.plot_electrode(xs,ys, lcolor = e_color, lw = elw)
             if self.dend_to_patch:
                 xd,yd = self.get_2d_position(self.dend_to_patch, 0.5)
-                self.plot_electrode(xd,yd,'grey',dpatch_left,linestyle = '--')
+                self.plot_electrode(xd,yd,lcolor = 'grey', dpatch_left=dpatch_left,lw = elw, linestyle = '--')
 
 
 
