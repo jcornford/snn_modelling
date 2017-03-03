@@ -124,25 +124,35 @@ class BasketCell(NeuronModel):
             self.total_nseg += sec.nseg
 
     def biophysics(self,
-                   Ra       =190,
+                   Ra       =170,
                    cm       = 0.9,
-                   gnabar   = 0.035,
-                   gkbar    = 0.009,
-                   gl       = 0.0001,
-                   vshift   = -14.0,#0.0
+                   gnabar   = 200*10**-4,
+                   gkbar    = 300*10**-4,
+                   gl       = 1./5000.0,
+                   vshift   = -12.0,
                    el       = -65.0,
                    egk      = -90.0,
                    ):
+        ''' .
 
-        ''' The values for gnabar, gkbar and gl are the default
-        values from the mod file 'hh_wbm from Jonas's 2001/2? paper.
+        20170303 This used to be default values in mod file:
+        values from the mod file 'hh_wbm from Jonas's 2001/2? paper
+        - 0.035 gnabar, gkbar 0.009, gl 0.0001, vshift -14, el -65,egk = -90
 
-        I have added vshift to the mod file
+        - mod file units are mho/cm2
+
+        Now we are using:
+         - 200 ps µm-2 gnabar  which translates to 200*10**-4, or 0.02
+         - 300 ps µm-2 gkbar   which translates to 300*10**-4, or 0.03, this is much bigger... check the origins of 0.009
+         - gl 1/5000 for 5 kohm cm2 or 0.0002
+
+
+
         '''
         self.leak_reversal = el
         for sec in self.sec_list:
-            sec.Ra = 170
-            sec.cm = 0.9
+            sec.Ra = Ra
+            sec.cm = cm
 
         # run the lamda rule having set Ra and cm
         # todo this should be after you have set membrane resistance (though you call a second time anyway)
@@ -158,7 +168,8 @@ class BasketCell(NeuronModel):
                 dist = h.distance(seg.x,sec=sec) # x is the soma(0.5) proerty. location in a section
                 distances_from_root.append(dist)
 
-        border_threshold = np.max(distances_from_root)
+        #border_threshold = np.max(distances_from_root)
+        border_threshold = 120
         if self.verbose:
             print ('Biophysics method reporting in: ')
             print ('Max dendrite distance from soma = ',np.max(distances_from_root))
@@ -207,9 +218,54 @@ class BasketCell(NeuronModel):
             if section.name() == dend_string:
                 self.dend_to_patch = section
 
-    def run_simulation(self,tstop = 100.0,v_init = -65.0):
+    def calc_r_input(self,iamp = 0.025, return_arrays = False):
+
+        v,t, i = self.iclamp_sweep(iamp, iclamp_delay=50, iclamp_dur = 200, tstop=300.0)
+        v_change = abs( abs(min(v)) -abs(max(v)))
+        rinput_mohm_pos = (v_change/abs(iamp*1000))*1000 # first 1k converts na to pa, second 1k gohm to mohm
+
+        v2,t2, i2 = self.iclamp_sweep(-iamp, iclamp_delay=50, iclamp_dur = 200, tstop=300.0)
+        v_change2 = abs( abs(min(v2)) -abs(max(v2)))
+        rinput_mohm_neg = (v_change2/abs(iamp*1000))*1000
+
+        self.input_resistance = np.mean([rinput_mohm_neg,rinput_mohm_pos])
+
+        print('Input Resistance: Neg:' +str(rinput_mohm_neg)+' Pos: ' + str(rinput_mohm_pos)+ ' mean: '+str(self.input_resistance) )
+
+        if return_arrays:
+            return [t,v,v2,i,i2]
+
+    def iclamp_sweep(self, iclamp_amp, iclamp_delay =25, iclamp_dur=50, v_init = -65.00, tstop = 100.0):
         h.load_file('stdrun.hoc')
 
+        self.iclamp = h.IClamp(0.5,sec = self.root)
+        rec = {}
+        for label in 't','v','i':
+            rec[label] = h.Vector()
+
+        rec['t'].record(h._ref_t)
+        rec['v'].record(self.root(0.5)._ref_v)
+        rec['i'].record(self.iclamp._ref_i)
+
+        self.iclamp.delay = iclamp_delay
+        self.iclamp.dur = iclamp_dur
+        self.iclamp.amp = iclamp_amp
+
+        h.tstop = tstop
+        h.v_init = v_init
+        h.celsius = 32.0
+        #print(h.dt)
+        h.dt = 0.01
+        h.run()
+
+        i = rec['i'].to_python()
+        v = rec['v'].to_python()
+        t = rec['t'].to_python()
+
+        return np.array(v),np.array(t), np.array(i)
+
+    def run_simulation(self,tstop = 100.0,v_init = -65.0):
+        h.load_file('stdrun.hoc')
         rec = {}
         for label in 't','v','vdend':
             rec[label] = h.Vector()
