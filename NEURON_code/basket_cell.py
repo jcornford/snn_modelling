@@ -127,9 +127,9 @@ class BasketCell(NeuronModel):
                    Ra       =170,
                    cm       = 0.9,
                    gnabar   = 200*10**-4,
-                   gkbar    = 300*10**-4,
+                   gkbar    = 300*10**-4,#300
                    gl       = 1./5000.0,
-                   vshift   = -12.0,
+                   vshift   = -14.0,
                    el       = -65.0,
                    egk      = -90.0,
                    ):
@@ -364,6 +364,7 @@ class BasketCell(NeuronModel):
             for i, segment in enumerate(self.u_dend):
                 distance = h.distance(segment.x, sec = self.u_dend)
                 print ('Seg', i, 'is', distance, 'microns from soma')
+        return([min(distances), max(distances)])
 
     def stim_electrodes(self):
         print ('not implemented - maybe second model')
