@@ -93,14 +93,102 @@ def get_sublinearity_percent(results_dframe):
     stim2_cp = results_dframe.stim2_cp.max()- results_dframe.stim2_cp.min()
     sum_cp = results_dframe.sum_cp.max()- results_dframe.sum_cp.min()
     expected_cp = stim1_cp+stim2_cp
-    print '100uM Polyamines:',((sum_cp/expected_cp)-1) *100,'%'
+    print ('100uM Polyamines:',((sum_cp/expected_cp)-1) *100,'%')
 
     stim1_wt = results_dframe.stim1_wt.max() - results_dframe.stim1_wt.min()
     stim2_wt = results_dframe.stim2_wt.max()- results_dframe.stim2_wt.min()
     sum_wt = results_dframe.sum_wt.max()- results_dframe.sum_wt.min()
     expected_wt = stim1_wt+stim2_wt
-    print 'Without Polyamines:',((sum_wt/expected_wt)-1) *100,'%'
+    print ('Without Polyamines:',((sum_wt/expected_wt)-1) *100,'%')
 
+def prettyNumber(f):
+    fScaled = f
+    if fScaled < 1:
+        correct = 10.0
+    else:
+        correct = 1.0
+
+    # set stepsize
+    nZeros = int(np.log10(fScaled))
+    prev10e = 10.0**nZeros / correct
+    next10e = prev10e * 10
+
+    if fScaled / prev10e  > 7.5:
+        return next10e
+    elif fScaled / prev10e  > 5.0:
+        return 5 * prev10e
+    else:
+        return round(fScaled/prev10e) * prev10e
+    
+def plot_scalebars(ax=False, div=3.0, labels=True, 
+                    xunits="", yunits="", nox=False, 
+                    sb_xoff=0.1, sb_yoff=-0.2, rotate_yslabel=False, 
+                    linestyle="-k", linewidth=1.0,
+                    textcolor='k', textweight='normal'):
+    # print dir(ax.dataLim)
+
+    if not ax:
+        ax = plt.gca()
+        ax.axis('off')
+
+    xmin = ax.dataLim.xmin
+    xmax = ax.dataLim.xmax
+    ymin = ax.dataLim.ymin
+    ymax = ax.dataLim.ymax
+    xscale = xmax-xmin
+    yscale = ymax-ymin
+
+    xoff = (scale_dist_x + sb_xoff) * xscale
+    yoff = (scale_dist_y - sb_yoff) * yscale
+
+    # plot scale bars:
+    xlength = prettyNumber((xmax-xmin)/div)
+    xend_x, xend_y = xmax, ymin
+    if not nox:
+        xstart_x, xstart_y = xmax-xlength, ymin
+        scalebarsx = [xstart_x+xoff, xend_x+xoff]
+        scalebarsy = [xstart_y-yoff, xend_y-yoff]
+    else:
+        scalebarsx=[xend_x+xoff,]
+        scalebarsy=[xend_y-yoff]
+    
+    ylength = prettyNumber((ymax-ymin)/div)
+    yend_x, yend_y = xmax, ymin+ylength
+    scalebarsx.append(yend_x+xoff)
+    scalebarsy.append(yend_y-yoff)
+        
+    ax.plot(scalebarsx, scalebarsy, linestyle, linewidth=linewidth, solid_joinstyle='miter')
+
+    if labels:
+        # if textcolor is not None:
+        #     color = "\color{%s}" % textcolor
+        # else:
+        #     color = ""
+        if not nox:
+            # xlabel
+            if xlength >=1:
+                xlabel = r"%d$\,$%s" % (xlength, xunits)
+            else:
+                xlabel = r"%g$\,$%s" % (xlength, xunits)
+            xlabel_x, xlabel_y = xmax-xlength/2.0, ymin
+            xlabel_y -= key_dist*yscale
+            ax.text(xlabel_x+xoff, xlabel_y-yoff, xlabel, ha='center', va='top',
+                    weight=textweight, color=textcolor) #, [pyx.text.halign.center,pyx.text.valign.top])
+        # ylabel
+        if ylength >=1:
+            ylabel = r"%d$\,$%s" % (ylength,yunits)
+        else:
+            ylabel = r"%g$\,$%s" % (ylength,yunits)
+        if not rotate_yslabel:
+            ylabel_x, ylabel_y = xmax, ymin + ylength/2.0
+            ylabel_x += key_dist*xscale
+            ax.text(ylabel_x+xoff, ylabel_y-yoff, ylabel, ha='left', va='center',
+                    weight=textweight, color=textcolor)
+        else:
+            ylabel_x, ylabel_y = xmax, ymin + ylength/2.0
+            ylabel_x += key_dist*xscale
+            ax.text(ylabel_x+xoff, ylabel_y-yoff, ylabel, ha='center', va='top', rotation=90,
+                    weight=textweight, color=textcolor)
 
 class Basket_cell():
 
@@ -152,7 +240,7 @@ class Basket_cell():
                 if sec.name().find('0') >= 0:
                     self.root = sec
                     if self.verbose:
-                        print sec.name(),'is root'
+                        print (sec.name(),'is root')
                 elif Jonas_cell:
                     self.root = sec
             if sec.name().find('dend') >=0:
@@ -206,11 +294,11 @@ class Basket_cell():
 
         border_threshold = np.max(distances_from_root)
         if self.verbose:
-            print 'Biophysics method reporting in: '
-            print 'Max dendrite distance from soma = ',np.max(distances_from_root)
-            print 'Border threshold (1/3 max), set at: ', border_threshold/3
+            #print 'Biophysics method reporting in: '
+            #print 'Max dendrite distance from soma = ',np.max(distances_from_root)
+            #print 'Border threshold (1/3 max), set at: ', border_threshold/3
             for section in self.sec_list:
-                print section.nseg, 'segments in ',section.name()
+                print (section.nseg, 'segments in ',section.name())
 
         # having calculated distances, insert conductances.
         for sec in self.dendrites:
@@ -281,7 +369,7 @@ class Basket_cell():
     def print_cpampa_locations(self):
         for i in self.cpampa_list:
             pyseg = i.get_segment()
-            print pyseg.sec.name(),pyseg.x
+            #print pyseg.sec.name(),pyseg.x
 
     def print_sec_seg_numbers(self):
         self.segment_list = []
@@ -290,7 +378,7 @@ class Basket_cell():
             self.section_names.append(section.name())
             for seg in section:
                 self.segment_list.append(seg)
-        print len(self.section_names),':sections. ',len(self.segment_list),':segments.'
+        print (len(self.section_names),':sections. ',len(self.segment_list),':segments.')
 
     def select_recording_dendrite(self, dend_string):
         for section in self.sec_list:
@@ -369,7 +457,7 @@ class Basket4Integration(Basket_cell):
                     if section.name() == dendrite_to_record:
                         self.dendrite = section
             if self.dend_to_patch:
-                print 'havent overwritten the simulate rdend argument - use it!'
+                print ('havent overwritten the simulate rdend argument - use it!')
             h.load_file('stdrun.hoc')
 
             self.rec = {}
@@ -406,8 +494,8 @@ class Basket4Integration(Basket_cell):
             error = self.vshift-measured_vshift
 
             if verbose:
-                print gmax,'ps: error',error,
-                print results['v_dend'].max()
+                print (gmax,'ps: error',error,)
+                print (results['v_dend'].max())
             return error, results['v_dend'].max(), results['v_soma'].max()
 
         def calc_gmax_for_vshift(self,gmax_start, vshift = 10, verbose = False):
@@ -421,7 +509,7 @@ class Basket4Integration(Basket_cell):
                 run +=1
                 if run >20:
                     break
-            print test_gmax,'pS gmax,', error,'error,', mxdend,'mV dend,', mxsoma,'mV soma'
+            print (test_gmax,'pS gmax,', error,'error,', mxdend,'mV dend,', mxsoma,'mV soma')
             return test_gmax
 
         @staticmethod

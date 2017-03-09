@@ -58,7 +58,8 @@ class NeuronModel():
                             dpatch_left = False, 
                             selection_string = 'cpampa_list',
                             e_color = 'k',
-                            elw     = 1):
+                            elw     = 1,
+                            plot_dpatch = False):
         
         '''
         This needs to be cleaned up a little.
@@ -126,11 +127,12 @@ class NeuronModel():
                              markersize = synapse_marker_r)
 
         if plot_electrodes:
+            if plot_dpatch:
+                xd,yd = self.get_2d_position(self.dend_to_patch, self.dend_patch_loc)
+                self.plot_electrode(xd,yd,lcolor = 'grey', dpatch_left=dpatch_left,lw = elw, linestyle = '--')
+            
             xs,ys = self.get_2d_position(self.root, 0.5)
             self.plot_electrode(xs,ys, lcolor = e_color, lw = elw)
-            if self.dend_to_patch:
-                xd,yd = self.get_2d_position(self.dend_to_patch, 0.5)
-                self.plot_electrode(xd,yd,lcolor = 'grey', dpatch_left=dpatch_left,lw = elw, linestyle = '--')
 
 
 
