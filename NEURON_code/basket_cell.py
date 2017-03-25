@@ -1,6 +1,7 @@
 import os
 
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 from neuron import h
 
@@ -23,8 +24,8 @@ class BasketCell(NeuronModel):
         self.cpampa_list = []
         self.nmda_list = []
         self.pre_list= []
-
-        self.dend_to_patch = self.root
+        self.dend_patch_loc = 0.5
+        
         self.u_dend = None
 
     def _load_morphology(self):
@@ -127,9 +128,9 @@ class BasketCell(NeuronModel):
                    Ra       =170,
                    cm       = 0.9,
                    gnabar   = 200*10**-4,
-                   gkbar    = 300*10**-4,
+                   gkbar    = 300*10**-4,#300
                    gl       = 1./5000.0,
-                   vshift   = -12.0,
+                   vshift   = -14.0,
                    el       = -65.0,
                    egk      = -90.0,
                    ):
@@ -213,10 +214,13 @@ class BasketCell(NeuronModel):
 
         self.set_nsegs(frequency=1000, d_lambda=0.1)
 
-    def select_recording_dendrite(self, dend_string):
+    def select_recording_dendrite(self, dend_string, dend_loc = 0.5):
+        ''' Pass in the sectiion and location on section'''
+        self.dend_patch_loc = dend_loc # default is middle of section
         for section in self.sec_list:
             if section.name() == dend_string:
                 self.dend_to_patch = section
+                
 
     def calc_r_input(self,iamp = 0.025, return_arrays = False):
 
@@ -270,8 +274,9 @@ class BasketCell(NeuronModel):
         for label in 't','v','vdend':
             rec[label] = h.Vector()
         rec['t'].record(h._ref_t)
-        rec['vdend'].record(self.dend_to_patch(0.5)._ref_v)
+        rec['vdend'].record(self.dend_to_patch(self.dend_patch_loc)._ref_v)
         rec['v'].record(self.root(0.5)._ref_v)
+        
 
         h.tstop = tstop
         h.celsius = 32.0
@@ -284,7 +289,42 @@ class BasketCell(NeuronModel):
         t      = rec['t'].to_python()
 
         return np.array(v_soma),np.array(t), np.array(v_dend)
-
+    
+    def run_detailed_sim(self, tstop = 100.0,v_init = -65.0):
+        ''' returns pan'''
+        h.load_file('stdrun.hoc')
+        rec = {}
+        for label in ['t','v','vdend','gk_dend','gna_dend','gna','gk', 'ina','ik','ina_dend','ik_dend']:
+            rec[label] = h.Vector()
+            
+        rec['t'].record(h._ref_t)
+                      
+        rec['vdend'].record(self.dend_to_patch(self.dend_patch_loc)._ref_v)
+        rec['gk_dend'].record(self.dend_to_patch(self.dend_patch_loc).hh_wbm._ref_gk)
+        rec['gna_dend'].record(self.dend_to_patch(self.dend_patch_loc).hh_wbm._ref_gna)
+        rec['ik_dend'].record(self.dend_to_patch(self.dend_patch_loc).hh_wbm._ref_ik)
+        rec['ina_dend'].record(self.dend_to_patch(self.dend_patch_loc).hh_wbm._ref_ina)
+        
+        rec['gna'].record(self.root(0.5).hh_wbm._ref_gna)
+        rec['gk'].record(self.root(0.5).hh_wbm._ref_gk)
+        rec['ina'].record(self.root(0.5).hh_wbm._ref_ina)
+        rec['ik'].record(self.root(0.5).hh_wbm._ref_ik)
+        rec['v'].record(self.root(0.5)._ref_v)
+        
+        # todo - we need all of the synapses here
+        # e.g.rec['i'].record(syn._ref_RB)
+        
+        h.tstop = tstop
+        h.celsius = 32.0
+        h.dt = 0.01
+        h.finitialize(v_init)
+        h.run()
+        
+        df = pd.DataFrame()
+        for key in rec.keys():
+            df[key] = rec[key].to_python()
+        return df
+    
     def add_uncaging_spots(self,
                           random_seed = 7,
                           n_synapses = 15,
@@ -349,21 +389,43 @@ class BasketCell(NeuronModel):
                     self.nmda_list.append(nmda)
 
     def get_uncaging_distances(self, dendrite = False):
+        ''' Returns '''
+        uncaging_info_dict = {}
         origin = h.distance(0,0.0,sec=self.root)
         distances = []
+        syn_segments = {}
         for syn in self.cpampa_list:
-            distance = h.distance(syn.get_segment().x, sec = self.u_dend)
+            segment = syn.get_segment()
+            distance = np.round(h.distance(segment.x, sec = self.u_dend),3)
             distances.append(distance)
-        print (min(distances),'to', max(distances), 'from soma')
-        print ('Middle is', min(distances) + (max(distances) - min(distances))/2.0)
-        print ('inter spot distances are', np.diff(sorted(np.unique(distances))))
-        print (len(np.unique(distances)), 'unique spots for', len(self.cpampa_list), 'synapses')
+            syn_segments[str(distance)]  = segment
+        d_set = set(distances)
+        uncaging_info_dict['syn_dist_to_seg_dict'] = syn_segments
+        uncaging_info_dict['syn_distances'] = d_set
+        
+        # grab the middle seg
+        mid = float(min(d_set)+(max(d_set) -min(d_set))/2.0)
+        d_arr = np.array(list(d_set))
+        mid_seg_dist = np.round(d_arr[np.abs(d_arr-mid).argmin()],3)
+        mid_seg = syn_segments[str(mid_seg_dist)]
+        uncaging_info_dict['mid_seg'] = mid_seg
+        uncaging_info_dict['x']=mid_seg.x
+        uncaging_info_dict['cluster_area'] = max(d_set) - min(d_set)
+        
+        
+        #print (min(distances),'to', max(distances), 'from soma')
+        #print ('Middle is', min(distances) + (max(distances) - min(distances))/2.0)
+        #print ('inter spot distances are', np.diff(sorted(np.unique(distances))))
+        #print (len(np.unique(distances)), 'unique spots for', len(self.cpampa_list), 'synapses')
 
         if dendrite:
             print ('Dendrite has', self.u_dend.nseg, 'segments:')
             for i, segment in enumerate(self.u_dend):
                 distance = h.distance(segment.x, sec = self.u_dend)
                 print ('Seg', i, 'is', distance, 'microns from soma')
+        #return([min(distances), max(distances)])
+        
+        return uncaging_info_dict
 
     def stim_electrodes(self):
         print ('not implemented - maybe second model')

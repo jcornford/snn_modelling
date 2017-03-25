@@ -1,5 +1,7 @@
 from neuron import h
 import numpy as np
+import matplotlib.pyplot as plt
+
 
 def get_valid_dendrites(pv_cell, min_max_distance):
     origin = h.distance(0,0.0,sec=pv_cell.root)
@@ -47,42 +49,7 @@ def get_uncaging_rois_per_dendrite(pv_cell,
                 u_exp_distances[key] = distances_for_exp # not using
                 #print(distances_for_exp)
     print(len(u_exp_locations.keys()), ' areas')
-    return u_exp_locations
-
-def get_param_dict(pv_cell, min_max_distance = (40, 200)):
-    # code to set up uncaging experiments
-
-    # first get dendrites that cover experimental distances
-    possible_dends = get_valid_dendrites(pv_cell, min_max_distance)
-    #print(len(possible_dends))
-
-    # now work out how many 'uncaging spots per dendrite'
-    # u_exp_locations[key] contains the a list of the segments to be used in each uncaging 'experiment'
-    u_exp_locations = get_uncaging_rois_per_dendrite(pv_cell, possible_dends, roi_area_micron =30, min_max_distance = min_max_distance)
-
-    # now work out the location range to pass to the make syanpses method
-    dend_loc_range, final_midpoints = get_location_range_for_make_synapse_method(u_exp_locations, possible_dends)
-
-    # make list of simulation parameters
-    param_dict_list = []
-    for flag in [False]:
-        param_dict = {}
-        for dend_name in dend_loc_range.keys():
-            param_dict['dendrite_name'] = dend_name
-            param_dict['location_selection'] = dend_loc_range[dend_name] # this is seg.x of (rounded ceil and floor)
-            param_dict['passive_flag'] = flag
-            param_dict['location_info'] = (final_midpoints[dend_name],early_distance_limits[dend_name])
-            param_dict['n_segs'] = len(u_exp_locations[dend_name])
-
-            #print(dend_loc_range[dend_name])
-            if 'bdend' in dend_name:
-                # oriens
-                param_dict['nmda_gmax'] = 3500# 3500
-            elif 'adend' in dend_name:
-                # radiatum
-                param_dict['nmda_gmax'] = 1000#1000
-            param_dict_list.append(param_dict.copy())
-            #print dend_name[:-2], dend_loc_range[dend_name]
+    return u_exp_locations, early_distance_limits
 
 def get_location_range_for_make_synapse_method(u_exp_locations, possible_dends):
     dend_loc_range = {}
@@ -123,4 +90,66 @@ def get_location_range_for_make_synapse_method(u_exp_locations, possible_dends):
 
     # lets just check that distances here are the same as distances from above?
     return dend_loc_range, final_midpoints
+
+def get_param_dict(pv_cell,base_nmda, base_ampa, min_max_distance = (40, 240), plot = False, 
+                   oriens_multiplier = 1, radiatum_multiplier = 1, passive_flag = False):
+    '''
+    For ease, just passing one thing to the uncaging multiprocessing simulation
+    '''
+    
+    # code to set up uncaging experiments
+
+    # first get dendrites that cover experimental distances
+    possible_dends = get_valid_dendrites(pv_cell, min_max_distance)
+    #print(len(possible_dends))
+
+    # now work out how many 'uncaging spots per dendrite'
+    # u_exp_locations[key] contains the a list of the segments to be used in each uncaging 'experiment'
+    u_exp_locations, early_distance_limits = get_uncaging_rois_per_dendrite(pv_cell, possible_dends, roi_area_micron =30, min_max_distance = min_max_distance)
+
+    # now work out the location range to pass to the make syanpses method
+    dend_loc_range, final_midpoints = get_location_range_for_make_synapse_method(u_exp_locations, possible_dends)
+
+    # make list of simulation parameters
+    param_dict_list = []
+
+    param_dict = {}
+    for dend_name in dend_loc_range.keys():
+        param_dict['dendrite_name'] = dend_name
+        param_dict['location_selection'] = dend_loc_range[dend_name] # this is seg.x of (rounded ceil and floor)
+        param_dict['passive_flag'] = passive_flag
+        param_dict['location_info'] = (final_midpoints[dend_name],early_distance_limits[dend_name])
+        param_dict['n_segs'] = len(u_exp_locations[dend_name])
+        param_dict['o:r_ratio'] = (oriens_multiplier,radiatum_multiplier)
+        param_dict['ampa_gmax'] = base_ampa
+        #print(dend_loc_range[dend_name])
+        if 'bdend' in dend_name:
+            # oriens
+            param_dict['nmda_gmax'] = base_nmda*oriens_multiplier
+        elif 'adend' in dend_name:
+            # radiatum
+            param_dict['nmda_gmax'] = base_nmda*radiatum_multiplier
+        param_dict_list.append(param_dict.copy())
+        #print dend_name[:-2], dend_loc_range[dend_name]
+        
+    # is this all for plotting?
+    o, r = [], []
+    for i,k in enumerate(final_midpoints.keys()):
+        #print(i,k)
+        if 'bdend' in str(k):
+            #print('oriens')
+            o.append(early_distance_limits[k][0])
+        else:
+            r.append(early_distance_limits[k][0])
+        # are these two below the same?
+        #print(final_midpoints[k]),
+        #print(early_distance_limits[k])
+    if plot:
+        plt.scatter(range(len(o)),o, c = 'r', label = 'ori')
+        plt.scatter(range(len(r)),r, c = 'b', label = 'rad')
+        plt.legend(loc = 'best')
+
+    print(len(r), len(o))
+
+    return param_dict_list
 

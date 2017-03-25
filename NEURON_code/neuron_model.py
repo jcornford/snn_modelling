@@ -38,33 +38,36 @@ class NeuronModel():
         h.pop_section()
         return (np.array(x),np.array(y),np.array(z),np.array(d))            
     
-    @staticmethod
-    def plot_electrode(x,y,lcolor = 'k', dpatch_left = False, dx=125,
+    def plot_electrode(self, x,y,lcolor = 'k', dpatch_left = False, dx=125,
                        dy = 12, lw = 1, gap = 1, linestyle = '-'):
         if dpatch_left:
             dx = -dx
-        plt.plot((x, x+dx),(y+gap, y+dy), color = lcolor, linewidth = lw, linestyle = linestyle)
-        plt.plot((x, x+dx),(y-gap, y-dy), color = lcolor, linewidth = lw, linestyle = linestyle)
+        self.ax.plot((x, x+dx),(y+gap, y+dy), color = lcolor, linewidth = lw, linestyle = linestyle)
+        self.ax.plot((x, x+dx),(y-gap, y-dy), color = lcolor, linewidth = lw, linestyle = linestyle)
                 
         
     def plot_morphology(self,
-                            figsize_tuple = (10,10),
-                            synapses = False,
-                            color_dendrites = False,
-                            synapse_marker_r = 5,
-                            synapse_marker_alpha = 0.5,
-                            plot_electrodes = False,
-                            xy = (512,512),
-                            dpatch_left = False, 
-                            selection_string = 'cpampa_list',
-                            e_color = 'k',
-                            elw     = 1):
+                        ax = False,
+                        figsize_tuple = (10,10),
+                        synapses = False,
+                        color_dendrites = False,
+                        synapse_marker_r = 5,
+                        synapse_marker_alpha = 0.5,
+                        plot_electrodes = False,
+                        xy = (512,512),
+                        dpatch_left = False, 
+                        selection_string = 'cpampa_list',
+                        e_color = 'k',
+                        elw     = 1,
+                        plot_dpatch = False):
         
         '''
         This needs to be cleaned up a little.
         '''
-
-        plt.figure(figsize = figsize_tuple)
+        self.ax = ax
+        if not ax:
+            fig = plt.figure(figsize = figsize_tuple)
+            self.ax = fig.add_suplot(111)
         im = Image.new('RGB',xy , (255, 255, 255)) 
         draw = ImageDraw.Draw(im)
 
@@ -90,7 +93,7 @@ class NeuronModel():
             else:
                 fill_color = (0,0,0)
             x,y,z,d = self.get_coordinates(sec)
-            x +=50
+            x +=50 # this is a hacky offset
             xy = list(zip(x,y))
             for i in range(len(x)-1):
                 draw.line((xy[i], xy[i+1]), fill = fill_color, width = int(d[i]))
@@ -104,14 +107,14 @@ class NeuronModel():
                         syn_loc = syn.get_segment().x 
                         sec = syn.get_segment().sec
                         x,y = self.get_2d_position(sec, syn_loc)
-                        plt.plot(x, y,'o',
+                        self.ax.plot(x, y,'o',
                                  alpha = synapse_marker_alpha,
                                  color = syncolor_dict[key],
                                  markersize = synapse_marker_r)
                 # make legend
                 stim1_patch = mpatches.Patch(color = syncolor_dict['stim1'], label = 'stim1')
                 stim2_patch = mpatches.Patch(color = syncolor_dict['stim2'], label = 'stim2')
-                plt.legend(handles = [stim1_patch, stim2_patch])
+                self.ax.legend(handles = [stim1_patch, stim2_patch])
 
             elif selection_string == 'cpampa_list':
                 syn_color = mc_f['r']
@@ -120,19 +123,20 @@ class NeuronModel():
                     syn_loc = syn.get_segment().x
                     sec = syn.get_segment().sec
                     x,y = self.get_2d_position(sec, syn_loc)
-                    plt.plot(x, y,'o',
+                    self.ax.plot(x, y,'o',
                              alpha = synapse_marker_alpha,
                              color = syn_color,
                              markersize = synapse_marker_r)
 
         if plot_electrodes:
+            if plot_dpatch:
+                xd,yd = self.get_2d_position(self.dend_to_patch, self.dend_patch_loc)
+                self.plot_electrode(xd,yd,lcolor = 'grey', dpatch_left=dpatch_left,lw = elw, linestyle = '--')
+            
             xs,ys = self.get_2d_position(self.root, 0.5)
             self.plot_electrode(xs,ys, lcolor = e_color, lw = elw)
-            if self.dend_to_patch:
-                xd,yd = self.get_2d_position(self.dend_to_patch, 0.5)
-                self.plot_electrode(xd,yd,lcolor = 'grey', dpatch_left=dpatch_left,lw = elw, linestyle = '--')
 
 
 
-        plt.imshow(np.asarray(im))
-        plt.axis('off')
+        self.ax.imshow(np.asarray(im))
+        #ax.axis('off')

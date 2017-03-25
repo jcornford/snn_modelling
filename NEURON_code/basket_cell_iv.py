@@ -148,7 +148,7 @@ class BasketCellIV(BasketCell):
         return art1,art2
 
     def get_nmda_ampa_ratio(self, p_conc = 0,
-               ampa_gmax = 2000, nmda_gmax = 3500, t_rel = 40.0):
+               ampa_gmax = 2000, nmda_gmax = 3500, t_rel = 40.0, vc_range = [-60,60]):
 
         self.clamp = h.SEClamp(0.5,sec=self.root)
         self.clamp.dur1 = 10
@@ -181,7 +181,7 @@ class BasketCellIV(BasketCell):
             h.setpointer(pre(0.5).rel._ref_T,'C',nmda)
 
             syn_list.append((nmda,cpampa))
-        vc_range = [-60,60]
+        
         v,i,t = self.run_vclamp(vc_range, tstop = 170)
 
         return v,i,t
