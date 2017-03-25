@@ -12,8 +12,9 @@ only slightly modified with changes suggested in this thread:
 https://groups.google.com/forum/#!topic/neuralensemble/4btzM0n_9O4
 
 ```
-docker run -it --rm -p 8888:8888 --name NEURON -v /Volumes/LACIE/Neuron2017:/home/docker/mounted_vol jcornford/jupyter-neuron
-```
+docker run -it --rm -p 8888:8888 --name NEURON -v /Volumes/LACIE/Neuron2017:/home/docker/mounted_vol
+                                               -v /Users/Jonathan/PycharmProjects/snn_modelling/NEURON_code:/home/docker/NEURON_code
+                                                 jcornford/jupyter-neuron```
 
 For making movie of simulation results:
 
