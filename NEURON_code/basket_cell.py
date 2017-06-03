@@ -269,6 +269,12 @@ class BasketCell(NeuronModel):
         return np.array(v),np.array(t), np.array(i)
 
     def run_simulation(self,tstop = 100.0,v_init = -65.0):
+        '''
+        assume there is dendrite that you've patched onto has been assigned
+        :param tstop: ms stop time
+        :param v_init: on the tin
+        :return: basic, voltage and time for
+        '''
         h.load_file('stdrun.hoc')
         rec = {}
         for label in 't','v','vdend':
@@ -294,7 +300,9 @@ class BasketCell(NeuronModel):
         ''' returns pandas'''
         h.load_file('stdrun.hoc')
         rec = {}
-        for label in ['t','v','vdend','gk_dend','gna_dend','gna','gk', 'ina','ik','ina_dend','ik_dend']:
+
+        detailed_sim_keys = ['t','v','vdend','gk_dend','gna_dend','gna','gk', 'ina','ik','ina_dend','ik_dend']
+        for label in detailed_sim_keys:
             rec[label] = h.Vector()
             
         rec['t'].record(h._ref_t)
@@ -304,24 +312,45 @@ class BasketCell(NeuronModel):
         rec['gna_dend'].record(self.dend_to_patch(self.dend_patch_loc).hh_wbm._ref_gna)
         rec['ik_dend'].record(self.dend_to_patch(self.dend_patch_loc).hh_wbm._ref_ik)
         rec['ina_dend'].record(self.dend_to_patch(self.dend_patch_loc).hh_wbm._ref_ina)
-        
+
         rec['gna'].record(self.root(0.5).hh_wbm._ref_gna)
         rec['gk'].record(self.root(0.5).hh_wbm._ref_gk)
         rec['ina'].record(self.root(0.5).hh_wbm._ref_ina)
         rec['ik'].record(self.root(0.5).hh_wbm._ref_ik)
         rec['v'].record(self.root(0.5)._ref_v)
-        
-        # todo - we need all of the synapses here
-        # e.g.rec['i'].record(syn._ref_RB)
-        
+
+        for i,syn in enumerate(self.cpampa_list):
+            rec['i_ampa_'+str(i)] = h.Vector()
+            rec['i_ampa_'+str(i)].record(self.cpampa_list[i]._ref_i)
+
+        for i,syn in enumerate(self.nmda_list):
+            rec['i_nmda_'+str(i)] = h.Vector()
+            rec['i_nmda_'+str(i)].record(self.nmda_list[i]._ref_i)
+
         h.tstop = tstop
         h.celsius = 32.0
         h.dt = 0.01
         h.finitialize(v_init)
         h.run()
-        
+
+        # pack up into dataframe
         df = pd.DataFrame()
+        # add cpamap and nmda, make individual dfs, in case you want them eventually
+        ampa_df = pd.DataFrame()
+        nmda_df = pd.DataFrame()
+
         for key in rec.keys():
+            if key.startswith('i_ampa_'):
+                ampa_df[key] = rec[key].to_python()
+
+        for key in rec.keys():
+            if key.startswith('i_nmda_'):
+                nmda_df[key] = rec[key].to_python()
+
+        # now build results df
+        df['i_ampa_all'] = np.sum(ampa_df.values, axis = 1)
+        df['i_nmda_all'] = np.sum(nmda_df.values, axis = 1)
+        for key in detailed_sim_keys: # other hoc vectors
             df[key] = rec[key].to_python()
         return df
     

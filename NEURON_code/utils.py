@@ -275,8 +275,13 @@ def plot_scalebars(ax=False, div=3.0, labels=True,
     xmax = ax.dataLim.xmax
     ymin = ax.dataLim.ymin
     ymax = ax.dataLim.ymax
+
+    xmin,xmax = ax.get_xlim()
+    ymin,ymax = ax.get_ylim()
+    #print(xmin,xmax)
     xscale = xmax-xmin
     yscale = ymax-ymin
+    #print(xscale)
 
     xoff = (scale_dist_x + sb_xoff) * xscale
     yoff = (scale_dist_y - sb_yoff) * yscale
@@ -311,7 +316,7 @@ def plot_scalebars(ax=False, div=3.0, labels=True,
             else:
                 xlabel = r"%g$\,$%s" % (xlength, xunits)
             xlabel_x, xlabel_y = xmax-xlength/2.0, ymin
-            xlabel_y -= key_dist*yscale
+            xlabel_y -= (key_dist * 3)*yscale
             ax.text(xlabel_x+xoff, xlabel_y-yoff, xlabel, ha='center', va='top',
                     weight=textweight, color=textcolor) #, [pyx.text.halign.center,pyx.text.valign.top])
         # ylabel
