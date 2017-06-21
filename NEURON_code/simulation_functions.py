@@ -95,7 +95,7 @@ def quantify_nonlinearity_i2(measured, as_sum):
 def uncaging_simulation(n_syn = 15, exp_dendrite = 'jc_tree2_bdend1[2]',p_conc = 0,
                         nmda_flag = False, u_delay = 1, nmda_gmax =3000,ampa_gmax = 2000,
                         loc_range = (0,1), passive_flag = False):
-
+    print('here')
     as_soma, as_dend, t = arithemetic_sum(n_syn = n_syn, exp_dendrite = exp_dendrite,
                                           p_conc = p_conc,nmda_flag = nmda_flag,
                                           u_delay = u_delay, nmda_gmax =nmda_gmax,

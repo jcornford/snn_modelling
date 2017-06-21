@@ -29,6 +29,7 @@ def get_uncaging_rois_per_dendrite(pv_cell,
         distances = [h.distance(seg.x, sec = dend) for seg in segs]
         tot_distance = h.distance(segs[-1].x, sec = dend) - h.distance(segs[0].x, sec = dend)
         n_locs = int(np.rint(tot_distance /roi_area_micron)) # 35 is the region over which we are uncaging here here
+        #print(n_locs)
         if n_locs: # trying to find uncaging locations per loaction
             #print tot_distance, 'total distance,', distances[0], distances[-1]
             #print n_locs, 'location/s'
@@ -36,8 +37,9 @@ def get_uncaging_rois_per_dendrite(pv_cell,
                 key = dend.name()+'_'+str(i)
                 lower_threshold = distances[0] + ((i) * (tot_distance/ n_locs))
                 upper_threshold =  distances[0] + ((i+1) * (tot_distance/ n_locs))
+                #print('***',lower_threshold, upper_threshold)
                 #eary_distance_limits[key] = ('min:', lower_threshold,'max:', upper_threshold,  (upper_threshold-lower_threshold))
-                early_distance_limits[key] = (lower_threshold,upper_threshold)
+                early_distance_limits[key] = (lower_threshold,upper_threshold) # these basically should specify where the syanpses can go
                 segs_for_exp, distances_for_exp = [],[]
                 for i,seg in enumerate(segs):
                     if np.logical_and(distances[i]>=lower_threshold,distances[i]<=upper_threshold):
@@ -48,10 +50,15 @@ def get_uncaging_rois_per_dendrite(pv_cell,
                 u_exp_locations[key] = segs_for_exp
                 u_exp_distances[key] = distances_for_exp # not using
                 #print(distances_for_exp)
-    print(len(u_exp_locations.keys()), ' areas')
-    return u_exp_locations, early_distance_limits
+    #print(len(u_exp_locations.keys()), ' areas')
+    print(u_exp_distances['jc_tree2_adend2[12]_0'])
+    #print(list(zip(u_exp_locations['jc_tree2_adend2[8]_0'],u_exp_distances['jc_tree2_adend2[8]_0'])))
+
+    return u_exp_locations, early_distance_limits # u_exp_locations are the segements that correspond to the locations - seem correct
+
 
 def get_location_range_for_make_synapse_method(u_exp_locations, possible_dends):
+    """  Make synapses method takes in tuple of distance range along a dendrite... e.g (0.0,0.2999)  """
     dend_loc_range = {}
     final_midpoints= {}
     for k in u_exp_locations.keys():
@@ -88,24 +95,26 @@ def get_location_range_for_make_synapse_method(u_exp_locations, possible_dends):
                     #print h.distance(u_exp_locations[k][-1].x, sec = dend)
         #print("***")
 
+    #print(dend_loc_range['jc_tree2_adend2[8]_0'])
+    #print(final_midpoints['jc_tree2_adend2[8]_0'])
     # lets just check that distances here are the same as distances from above?
     return dend_loc_range, final_midpoints
 
 def get_param_dict(pv_cell,base_nmda, base_ampa, min_max_distance = (40, 240), plot = False, 
-                   oriens_multiplier = 1, radiatum_multiplier = 1, passive_flag = False):
+                   oriens_multiplier = 1, radiatum_multiplier = 1, passive_flag = False,roi_area_microns = 30):
     '''
     For ease, just passing one thing to the uncaging multiprocessing simulation
     '''
     
     # code to set up uncaging experiments
-
+    print('roi_area_microns=', roi_area_microns)
     # first get dendrites that cover experimental distances
     possible_dends = get_valid_dendrites(pv_cell, min_max_distance)
     #print(len(possible_dends))
 
     # now work out how many 'uncaging spots per dendrite'
     # u_exp_locations[key] contains the a list of the segments to be used in each uncaging 'experiment'
-    u_exp_locations, early_distance_limits = get_uncaging_rois_per_dendrite(pv_cell, possible_dends, roi_area_micron =30, min_max_distance = min_max_distance)
+    u_exp_locations, early_distance_limits = get_uncaging_rois_per_dendrite(pv_cell, possible_dends, roi_area_micron =roi_area_microns, min_max_distance = min_max_distance)
 
     # now work out the location range to pass to the make syanpses method
     dend_loc_range, final_midpoints = get_location_range_for_make_synapse_method(u_exp_locations, possible_dends)
@@ -117,6 +126,7 @@ def get_param_dict(pv_cell,base_nmda, base_ampa, min_max_distance = (40, 240), p
     for dend_name in dend_loc_range.keys():
         param_dict['dendrite_name'] = dend_name
         param_dict['location_selection'] = dend_loc_range[dend_name] # this is seg.x of (rounded ceil and floor)
+        param_dict['segments_for_uncaging'] = u_exp_locations[dend_name]
         param_dict['passive_flag'] = passive_flag
         param_dict['location_info'] = (final_midpoints[dend_name],early_distance_limits[dend_name])
         param_dict['n_segs'] = len(u_exp_locations[dend_name])

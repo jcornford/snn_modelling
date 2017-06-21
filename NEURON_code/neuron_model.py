@@ -67,7 +67,7 @@ class NeuronModel():
         self.ax = ax
         if not ax:
             fig = plt.figure(figsize = figsize_tuple)
-            self.ax = fig.add_suplot(111)
+            self.ax = fig.add_subplot(111)
         im = Image.new('RGB',xy , (255, 255, 255)) 
         draw = ImageDraw.Draw(im)
 
@@ -117,7 +117,7 @@ class NeuronModel():
                 self.ax.legend(handles = [stim1_patch, stim2_patch])
 
             elif selection_string == 'cpampa_list':
-                syn_color = mc_f['r']
+                syn_color = mc_f['grey']
 
                 for syn in self.cpampa_list:
                     syn_loc = syn.get_segment().x
@@ -126,7 +126,7 @@ class NeuronModel():
                     self.ax.plot(x, y,'o',
                              alpha = synapse_marker_alpha,
                              color = syn_color,
-                             markersize = synapse_marker_r)
+                             markersize = synapse_marker_r,clip_on = False)
 
         if plot_electrodes:
             if plot_dpatch:

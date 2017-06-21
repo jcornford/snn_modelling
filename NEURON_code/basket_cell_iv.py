@@ -41,8 +41,13 @@ class BasketCellIV(BasketCell):
 
         return v,i,t
 
-    def get_iv(self, synpase_type = 'ampa', p_conc = 0,
-               ampa_gmax = 5000, nmda_gmax = 5000, t_rel = 40.0):
+    def get_synapse_iv(self, synpase_type = 'ampa', p_conc = 0,
+               ampa_gmax = 5000, nmda_gmax = 5000, t_rel = 40.0, vc_range = np.arange(-90.0,50.0,5.0), nmda_mech = 'h.NMDA_Mg_T', vshift = None):
+
+        '''
+
+        Method for generating large IV curves... Not sure if best, use synapse __ref__i
+        '''
 
         self.clamp = h.SEClamp(0.5,sec=self.root)
         self.clamp.dur1 = 10
@@ -72,15 +77,143 @@ class BasketCellIV(BasketCell):
 
         if synpase_type.lower() == 'nmda':
             print ('running simulation of NMDA IV')
-
-            nmda = h.NMDA_Mg_T(0.5,sec=self.root)
+            nmda = eval(nmda_mech+'(0.5,sec=self.root)')
+            print('inserted: '+nmda_mech+'(0.5,sec=self.root)')
+            #nmda = h.NMDA_Mg_T(0.5,sec=self.root)
+            if vshift:
+                print('vshift: '+str(vshift))
+                nmda.vshift = vshift
             nmda.gmax =  nmda_gmax
             h.setpointer(pre(0.5).rel._ref_T,'C',nmda)
 
-        vc_range = np.arange(-90.0,50.0,5.0)
+
         v,i,t = self.run_vclamp(vc_range, tstop = 80)
         i_list, v_list = self.calc_iv_relationship(v,i,t)
-        return i_list, v_list
+        return i_list, v_list,
+
+    def get_ampa_iv_2017(self, ampa_gmax, p_conc = 0, vc_range = [-60,60], tstop = 220,t_rel = 40.0 ):
+        self.clamp = h.SEClamp(0.5,sec=self.root)
+        self.clamp.dur1 = 10
+        self.clamp.dur2 = 200
+        self.clamp.dur3 = 10
+        self.clamp.amp1= -70
+        self.clamp.amp2 = -70
+        self.clamp.amp3 = -70
+        self.clamp.rs = 0.0001
+
+        pre = h.Section()
+        pre.diam = 1.0
+        pre.L = 1.0
+        pre.insert('rel')
+        pre.dur_rel = 0.5
+        pre.amp_rel = 3.0
+        pre.del_rel = t_rel
+        print('amp 3')
+
+        cpampa = h.cpampa12st(0.5,sec=self.root)
+        cpampa.pconc = p_conc
+        cpampa.gmax  = ampa_gmax
+
+        h.setpointer(pre(0.5).rel._ref_T,'C',cpampa)
+
+        h.load_file('stdrun.hoc')
+        rec = {}
+        for label in 't','v','i_ampa','g_ampa':
+            rec[label] = h.Vector()
+
+        rec['t'].record(h._ref_t)
+        rec['i_ampa'].record(cpampa._ref_i)
+        rec['g_ampa'].record(cpampa._ref_g)
+        rec['v'].record(self.root(0.5)._ref_v)
+
+        v_list,i_list,t_list,g_list = [],[],[],[]
+        h.tstop = tstop
+        h.celsius = 32.0
+
+        for vc in vc_range:
+            h.init()
+            #h.finitialize(v_init)
+            self.clamp.amp2 = vc
+            h.run()
+            i = rec['i_ampa'].to_python()
+            g = rec['g_ampa'].to_python()
+            v = rec['v'].to_python()
+            t = rec['t'].to_python()
+            v_list.append(v)
+            i_list.append(i)
+            t_list.append(t)
+            g_list.append(g)
+
+        v = np.array(v_list).transpose()
+        i = np.array(i_list).transpose()*1000 # for pA
+        t = np.array(t_list).transpose()
+        g = np.array(g_list).transpose() * 1*10**6 # this is defined as microSiemens in the mod file: 1000000, so for pico 1e-6
+
+        return t,i,v,g  # in pA
+
+    def get_nmda_iv_2017(self, nmda_gmax, vc_range = [-60,60], tstop = 220, t_rel = 40.0 ):
+        self.clamp = h.SEClamp(0.5,sec=self.root)
+        self.clamp.dur1 = 10
+        self.clamp.dur2 = 200
+        self.clamp.dur3 = 10
+        self.clamp.amp1= -70
+        self.clamp.amp2 = -70
+        self.clamp.amp3 = -70
+        self.clamp.rs = 0.0001
+
+        pre = h.Section()
+        pre.diam = 1.0
+        pre.L = 1.0
+        pre.insert('rel')
+        pre.dur_rel = 0.5
+        pre.amp_rel = 3.0
+        pre.del_rel = t_rel
+
+        nmda = h.NMDA_Mg_T(0.5,sec=self.root)
+        # overwriting briefly... testing difference before  changing to ampa properly 2017_05_26
+        # also for comapring presyantuic glutamte
+        #print('overwritten for glu!')
+        #nmda = h.cpampa12st(0.5,sec=self.root)
+        #nmda.pconc = 0
+        nmda.gmax  = nmda_gmax
+
+        h.setpointer(pre(0.5).rel._ref_T,'C',nmda)
+
+        h.load_file('stdrun.hoc')
+        rec = {}
+        for label in 't','v','i_nmda','g_nmda':
+            rec[label] = h.Vector()
+
+        rec['t'].record(h._ref_t)
+        rec['i_nmda'].record(nmda._ref_i)
+        rec['g_nmda'].record(nmda._ref_g)
+        rec['v'].record(self.root(0.5)._ref_v)
+
+        v_list,i_list,t_list,g_list = [],[],[],[]
+        h.tstop = tstop
+        h.celsius = 32.0
+        for vc in vc_range:
+            h.init()
+            #h.finitialize(v_init)
+            self.clamp.amp2 = vc
+            h.run()
+            i = rec['i_nmda'].to_python()
+            g = rec['g_nmda'].to_python()
+            v = rec['v'].to_python()
+            t = rec['t'].to_python()
+            v_list.append(v)
+            i_list.append(i)
+            t_list.append(t)
+            g_list.append(g)
+
+        v = np.array(v_list).transpose()
+        i = np.array(i_list).transpose()*1000 # for pA
+        t = np.array(t_list).transpose()
+        g = np.array(g_list).transpose()
+
+        return t,i,v,g # in pA
+
+
 
     def calc_iv_relationship(self, v,i,t):
         '''
@@ -147,8 +280,8 @@ class BasketCellIV(BasketCell):
 
         return art1,art2
 
-    def get_nmda_ampa_ratio(self, p_conc = 0,
-               ampa_gmax = 2000, nmda_gmax = 3500, t_rel = 40.0, vc_range = [-60,60]):
+    def get_nmda_ampa_ratio(self, p_conc,
+               ampa_gmax, nmda_gmax, t_rel = 40.0, vc_range = [-60,60]):
 
         self.clamp = h.SEClamp(0.5,sec=self.root)
         self.clamp.dur1 = 10
@@ -185,3 +318,44 @@ class BasketCellIV(BasketCell):
         v,i,t = self.run_vclamp(vc_range, tstop = 170)
 
         return v,i,t
+
+    def get_iv(self, synpase_type = 'ampa', p_conc = 0,
+               ampa_gmax = 5000, nmda_gmax = 5000, t_rel = 40.0):
+
+        self.clamp = h.SEClamp(0.5,sec=self.root)
+        self.clamp.dur1 = 10
+        self.clamp.dur2 = 60
+        self.clamp.dur3 = 10
+        self.clamp.amp1= -70
+        self.clamp.amp2 = -70
+        self.clamp.amp3 = -70
+        self.clamp.rs = 0.0001
+
+        pre = h.Section()
+        pre.diam = 1.0
+        pre.L = 1.0
+        pre.insert('rel')
+        pre.dur_rel = 0.5
+        pre.amp_rel = 3.0
+        pre.del_rel = t_rel
+
+        if synpase_type.lower() == 'ampa':
+            print('running simulation of AMPAR IV with',p_conc,'µM polyamines')
+
+            cpampa = h.cpampa12st(0.5,sec=self.root)
+            cpampa.pconc = p_conc
+            cpampa.gmax  = ampa_gmax
+
+            h.setpointer(pre(0.5).rel._ref_T,'C',cpampa)
+
+        if synpase_type.lower() == 'nmda':
+            print ('running simulation of NMDA IV')
+
+            nmda = h.NMDA_Mg_T(0.5,sec=self.root)
+            nmda.gmax =  nmda_gmax
+            h.setpointer(pre(0.5).rel._ref_T,'C',nmda)
+
+        vc_range = np.arange(-90.0,50.0,10.0)
+        v,i,t = self.run_vclamp(vc_range, tstop = 80)
+        i_list, v_list = self.calc_iv_relationship(v,i,t)
+        return i_list, v_list

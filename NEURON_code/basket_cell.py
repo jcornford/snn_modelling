@@ -129,9 +129,11 @@ class BasketCell(NeuronModel):
                    cm       = 0.9,
                    gnabar   = 200*10**-4,
                    gkbar    = 300*10**-4,#300
-                   gl       = 1./5000.0,
-                   vshift   = -14.0,
-                   el       = -65.0,
+                   #gl       = 1./9500, # this is for dimitri if unifrom rm
+                   gl       = 1./5550, # this is for the 78 mean cell i have
+                   #gl       = 1./5000.0, # this is for the
+                   vshift   = -12.0,
+                   el       = -65.0, # originally 65
                    egk      = -90.0,
                    ):
         ''' .
@@ -423,6 +425,7 @@ class BasketCell(NeuronModel):
         origin = h.distance(0,0.0,sec=self.root)
         distances = []
         syn_segments = {}
+        #print(len(self.cpampa_list))
         for syn in self.cpampa_list:
             segment = syn.get_segment()
             distance = np.round(h.distance(segment.x, sec = self.u_dend),3)
@@ -433,7 +436,7 @@ class BasketCell(NeuronModel):
         uncaging_info_dict['syn_distances'] = d_set
         
         # grab the middle seg
-        mid = float(min(d_set)+(max(d_set) -min(d_set))/2.0)
+        mid = float(min(d_set)+(max(d_set) - min(d_set))/2.0)
         d_arr = np.array(list(d_set))
         mid_seg_dist = np.round(d_arr[np.abs(d_arr-mid).argmin()],3)
         mid_seg = syn_segments[str(mid_seg_dist)]
